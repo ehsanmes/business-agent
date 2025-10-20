@@ -98,7 +98,12 @@ def analyze_articles_with_ai(articles):
     4. **On the Horizon:** Mention emerging topics or weak signals.
     """
     prompt = ChatPromptTemplate.from_template(prompt_template)
-    model = ChatOpenAI(model="gpt-4o", temperature=0.5, api_key=OPENAI_API_KEY)
+    model = ChatOpenAI(
+    model="gpt-4o",
+    temperature=0.5,
+    api_key=OPENAI_API_KEY,
+    base_url="https://api.avalai.com/v1"  # <--- این خط حیاتی است
+)
     chain = prompt | model | StrOutputParser()
     report = chain.invoke({"articles_text": articles_text})
     return report
@@ -133,5 +138,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
