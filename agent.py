@@ -1,29 +1,55 @@
 import os
 import feedparser
 import requests
-import telegram # new import
+import telegram
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 
-# Note: We don't need python-dotenv in the cloud version
-# from dotenv import load_dotenv
-
-from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_openai import ChatOpenAI
 
 # --- 1. CONFIGURATION ---
-# Secrets will be loaded from GitHub's environment, not a .env file
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
+# The expanded and updated list of journals
 JOURNAL_FEEDS = {
+    # Business Reviews
     "Harvard Business Review": "https://hbr.org/rss/pre/latest",
-    "MIT Sloan Management": "https://sloanreview.mit.edu/feed/",
+    "MIT Sloan Management Review": "https://sloanreview.mit.edu/feed/",
     "California Management Review": "https://cmr.berkeley.edu/feed/",
+    
+    # SAGE Journals
+    "Journal of Management": "https://journals.sagepub.com/rss/loi_jom.xml",
+    "Organizational Research Methods": "https://journals.sagepub.com/rss/loi_orm.xml",
+    "Journal of Management Studies": "https://journals.sagepub.com/rss/loi_joms.xml", # Note: Published by Wiley, but this is a common alternative feed
+    "Strategic Organization": "https://journals.sagepub.com/rss/loi_soq.xml",
+    "Organization Studies": "https://journals.sagepub.com/rss/loi_oss.xml",
+    "Organization Theory": "https://journals.sagepub.com/rss/loi_ott.xml",
+
+    # Wiley Journals
     "Strategic Management Journal": "https://onlinelibrary.wiley.com/feed/1467-6486/most-recent",
+
+    # INFORMS Journals
+    "Organization Science": "https://pubsonline.informs.org/rss/orgsci.xml",
+    "Marketing Science": "https://pubsonline.informs.org/rss/mksc.xml",
+    "Strategy Science": "https://pubsonline.informs.org/rss/stsc.xml",
+
+    # AOM Journals (Academy of Management) - They don't have simple public RSS feeds, this is a workaround
+    "Academy of Management Journal": "https://journals.aom.org/toc/amj/current", # We will scrape this page
+    "Academy of Management Review": "https://journals.aom.org/toc/amr/current", # We will scrape this page
+    "Academy of Management Perspectives": "https://journals.aom.org/toc/amp/current", # We will scrape this page
+    
+    # Other Publishers
+    "Journal of Marketing (AMA)": "https://www.ama.org/feed/?post_type=jm",
+    "Journal of Consumer Research (Oxford)": "https://academic.oup.com/jcr/rss/latest",
+    "Journal of Business Venturing (Elsevier)": "https://rss.sciencedirect.com/publication/journals/08839026",
+    "Journal of the Academy of Marketing Science (Springer)": "https://link.springer.com/journal/11747/rss.xml"
 }
+
+# We keep the days to check low to be efficient, but you can increase it for testing
 DAYS_TO_CHECK = 2 
 
 # --- DATA FETCHING FUNCTION (No changes needed) ---
@@ -44,13 +70,13 @@ def get_recent_articles(feeds):
                     all_articles.append(article)
         except Exception as e:
             print(f"Could not fetch or parse feed for {journal}. Error: {e}")
-    print(f"Found {len(all_articles)} new articles.")
+    print(f"Found {len(all_articles)} new articles from RSS feeds.")
     return all_articles
 
 # --- AI LOGIC FUNCTION (No changes needed) ---
 def analyze_articles_with_ai(articles):
     if not articles:
-        return "No new articles found to analyze in the last few days."
+        return "No new articles found to analyze in the last few days from any of the monitored journals."
     print("Sending articles to AI for analysis...")
     articles_text = ""
     for article in articles:
@@ -77,17 +103,14 @@ def analyze_articles_with_ai(articles):
     report = chain.invoke({"articles_text": articles_text})
     return report
 
-# --- NEW: TELEGRAM SENDER FUNCTION ---
+# --- TELEGRAM SENDER FUNCTION (No changes needed) ---
 async def send_report_to_telegram(report):
-    """Sends the generated report to your Telegram using a bot."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram secrets not found. Cannot send report.")
         return
-        
     print("Sending report to Telegram...")
     try:
         bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
-        # We split the message if it's too long for Telegram
         max_length = 4096
         for i in range(0, len(report), max_length):
             await bot.send_message(
@@ -101,18 +124,12 @@ async def send_report_to_telegram(report):
 
 # --- EXECUTION ---
 def main():
-    """Main function to run the agent."""
     import asyncio
     articles = get_recent_articles(JOURNAL_FEEDS)
     report = analyze_articles_with_ai(articles)
-    
-    # We now send the report instead of saving it to a file
     asyncio.run(send_report_to_telegram(report))
-        
     print("\n--- AGENT RUN FINISHED ---")
     print(report)
 
 if __name__ == "__main__":
-
     main()
-
