@@ -1,6 +1,5 @@
 langchain
-langchain-openai
+langchain-google-genai 
 beautifulsoup4
 feedparser
-python-dotenv
 python-telegram-bot
