@@ -25,7 +25,7 @@ jobs:
 
       - name: Run the agent script
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}      # <--- این خط اصلاح شد
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}      # <--- This line is updated
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python agent.py
