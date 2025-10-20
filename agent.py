@@ -5,54 +5,33 @@ import telegram
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 
+# NEW IMPORTS FOR GOOGLE
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI # <--- Replaced OpenAI with Google
 
 # --- 1. CONFIGURATION ---
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+# We now use the Google API Key
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# The expanded and updated list of journals
 JOURNAL_FEEDS = {
-    # Business Reviews
     "Harvard Business Review": "http://feeds.harvardbusiness.org/harvardbusiness/",
     "MIT Sloan Management Review": "https://sloanreview.mit.edu/feed/",
     "California Management Review": "https://cmr.berkeley.edu/feed/",
-    
-    # SAGE Journals
     "Journal of Management": "https://journals.sagepub.com/rss/loi_jom.xml",
-    "Organizational Research Methods": "https://journals.sagepub.com/rss/loi_orm.xml",
-    "Journal of Management Studies": "https://journals.sagepub.com/rss/loi_joms.xml", # Note: Published by Wiley, but this is a common alternative feed
-    "Strategic Organization": "https://journals.sagepub.com/rss/loi_soq.xml",
-    "Organization Studies": "https://journals.sagepub.com/rss/loi_oss.xml",
-    "Organization Theory": "https://journals.sagepub.com/rss/loi_ott.xml",
-
-    # Wiley Journals
     "Strategic Management Journal": "https://onlinelibrary.wiley.com/feed/1467-6486/most-recent",
-
-    # INFORMS Journals
     "Organization Science": "https://pubsonline.informs.org/rss/orgsci.xml",
-    "Marketing Science": "https://pubsonline.informs.org/rss/mksc.xml",
-    "Strategy Science": "https://pubsonline.informs.org/rss/stsc.xml",
-
-    # AOM Journals (Academy of Management) - They don't have simple public RSS feeds, this is a workaround
-    "Academy of Management Journal": "https://journals.aom.org/toc/amj/current", # We will scrape this page
-    "Academy of Management Review": "https://journals.aom.org/toc/amr/current", # We will scrape this page
-    "Academy of Management Perspectives": "https://journals.aom.org/toc/amp/current", # We will scrape this page
-    
-    # Other Publishers
     "Journal of Marketing (AMA)": "https://www.ama.org/feed/?post_type=jm",
     "Journal of Consumer Research (Oxford)": "https://academic.oup.com/jcr/rss/latest",
     "Journal of Business Venturing (Elsevier)": "https://rss.sciencedirect.com/publication/journals/08839026",
     "Journal of the Academy of Marketing Science (Springer)": "https://link.springer.com/journal/11747/rss.xml"
 }
 
-# We keep the days to check low to be efficient, but you can increase it for testing
-DAYS_TO_CHECK = 5
+DAYS_TO_CHECK = 5 # Let's keep it wide for the first test
 
-# --- DATA FETCHING FUNCTION (No changes needed) ---
+# --- DATA FETCHING FUNCTION (No changes) ---
 def get_recent_articles(feeds):
     print("Fetching recent articles...")
     all_articles = []
@@ -73,11 +52,11 @@ def get_recent_articles(feeds):
     print(f"Found {len(all_articles)} new articles from RSS feeds.")
     return all_articles
 
-# --- AI LOGIC FUNCTION (No changes needed) ---
+# --- AI LOGIC FUNCTION (Updated for Google Gemini) ---
 def analyze_articles_with_ai(articles):
     if not articles:
         return "No new articles found to analyze in the last few days from any of the monitored journals."
-    print("Sending articles to AI for analysis...")
+    print("Sending articles to Google Gemini for analysis...")
     articles_text = ""
     for article in articles:
         articles_text += f"Journal: {article['journal']}\nTitle: {article['title']}\nLink: {article['link']}\nSummary: {article['summary']}\n\n---\n\n"
@@ -98,17 +77,21 @@ def analyze_articles_with_ai(articles):
     4. **On the Horizon:** Mention emerging topics or weak signals.
     """
     prompt = ChatPromptTemplate.from_template(prompt_template)
-    model = ChatOpenAI(
-    model="gpt-4o-mini",                  # <--- تغییر به مدل ارزان‌تر
-    temperature=0.5,
-    api_key=OPENAI_API_KEY,
-    base_url="https://api.avalapis.ir/v1"  # <--- تغییر به دامنه ثانویه
-)
+    
+    # Initialize the Google Gemini model
+    model = ChatGoogleGenerativeAI(
+        model="gemini-1.5-flash", # A fast and powerful free model
+        google_api_key=GOOGLE_API_KEY,
+        temperature=0.5,
+        convert_system_message_to_human=True # Important for compatibility
+    )
+    
     chain = prompt | model | StrOutputParser()
+    
     report = chain.invoke({"articles_text": articles_text})
     return report
 
-# --- TELEGRAM SENDER FUNCTION (No changes needed) ---
+# --- TELEGRAM SENDER FUNCTION (No changes) ---
 async def send_report_to_telegram(report):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram secrets not found. Cannot send report.")
@@ -138,7 +121,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
