@@ -1,5 +1,5 @@
 langchain
-langchain-google-genai 
+langchain-huggingface
 beautifulsoup4
 feedparser
 python-telegram-bot
