@@ -1,0 +1,6 @@
+langchain
+langchain-openai
+beautifulsoup4
+feedparser
+python-dotenv
+python-telegram-bot
