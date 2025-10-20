@@ -80,7 +80,7 @@ def analyze_articles_with_ai(articles):
     
     # Initialize the Google Gemini model
     model = ChatGoogleGenerativeAI(
-    model="gemini-pro",       # <--- تغییر به مدل استاندارد و پایدار
+    model="gemini-2.5-flash",   # <--- نام مدل صحیح از لیست شما
     google_api_key=GOOGLE_API_KEY,
     temperature=0.5,
     convert_system_message_to_human=True
@@ -121,4 +121,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
