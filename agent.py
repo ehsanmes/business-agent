@@ -50,7 +50,7 @@ JOURNAL_FEEDS = {
 }
 
 # We keep the days to check low to be efficient, but you can increase it for testing
-DAYS_TO_CHECK = 2 
+DAYS_TO_CHECK = 5
 
 # --- DATA FETCHING FUNCTION (No changes needed) ---
 def get_recent_articles(feeds):
@@ -133,4 +133,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
