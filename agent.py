@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 # from dotenv import load_dotenv
 
 from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain.schema.output_parser import StrOutputParser
 
 # --- 1. CONFIGURATION ---
@@ -113,4 +113,5 @@ def main():
     print(report)
 
 if __name__ == "__main__":
+
     main()
