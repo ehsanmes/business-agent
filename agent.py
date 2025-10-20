@@ -7,7 +7,9 @@ from datetime import datetime, timedelta
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_huggingface import HuggingFaceEndpoint
+# NEW IMPORTS FOR THE CORRECT HUGGING FACE CHAT MODEL
+from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
+from langchain_core.messages import HumanMessage, SystemMessage
 
 # --- 1. CONFIGURATION ---
 HF_TOKEN = os.environ.get("HF_TOKEN")
@@ -38,7 +40,6 @@ def get_recent_articles(feeds):
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries:
-                # Check for a valid published date
                 if hasattr(entry, 'published_parsed') and entry.published_parsed:
                     published_time = datetime(*entry.published_parsed[:6])
                     if published_time >= cutoff_date:
@@ -54,40 +55,41 @@ def get_recent_articles(feeds):
     print(f"Found {len(all_articles)} new articles from RSS feeds.")
     return all_articles
 
-# --- AI LOGIC FUNCTION (Updated for new model and prompt) ---
+# --- AI LOGIC FUNCTION (Updated to use ChatHuggingFace) ---
 def analyze_articles_with_ai(articles):
     if not articles:
         return "No new articles found to analyze in the last few days."
 
-    print("Sending articles to Hugging Face for analysis...")
+    print("Sending articles to Hugging Face (Mistral model) for analysis...")
     articles_text = ""
     for article in articles:
         articles_text += f"Journal: {article['journal']}\nTitle: {article['title']}\nSummary: {article['summary']}\n\n---\n\n"
 
-    # A simplified and more direct prompt for the new model
-    prompt_template = """
-    Task: You are a world-class senior business research analyst. Analyze the following list of recently published articles and generate a concise, markdown-formatted 'Executive Dossier'.
-    The dossier must have these sections: Executive Summary, Deep Dive, Strategic Synthesis, and On the Horizon.
-
-    Here is the list of articles to analyze:
-    {articles_text}
-
-    Begin the 'Executive Dossier' now:
-    """
-    
-    prompt = ChatPromptTemplate.from_template(prompt_template)
-    
-    # Initialize the new, more compatible Hugging Face model endpoint
-    model = HuggingFaceEndpoint(
-        repo_id="google/flan-t5-xxl",  # <--- Changed to a highly compatible model
+    # Define the connection to the Hugging Face Inference API
+    llm = HuggingFaceEndpoint(
+        repo_id="mistralai/Mistral-7B-Instruct-v0.2",
         huggingfacehub_api_token=HF_TOKEN,
-        temperature=0.8,
+        task="text-generation", # The underlying task is still text-generation
+        temperature=0.7,
         max_new_tokens=2048,
     )
+
+    # Wrap the endpoint in the ChatHuggingFace class for a conversational interface
+    model = ChatHuggingFace(llm=llm)
+
+    # Create the list of messages for the conversational model
+    messages = [
+        SystemMessage(
+            content="You are a world-class senior business research analyst. Analyze the provided list of articles and generate a concise, markdown-formatted 'Executive Dossier' with these sections: Executive Summary, Deep Dive, Strategic Synthesis, and On the Horizon."
+        ),
+        HumanMessage(content=f"Here are the articles to analyze:\n\n{articles_text}"),
+    ]
     
-    chain = prompt | model | StrOutputParser()
+    # Invoke the model with the list of messages
+    result = model.invoke(messages)
     
-    report = chain.invoke({"articles_text": articles_text})
+    # The output from the chat model is in the 'content' attribute
+    report = result.content
     return report
 
 # --- TELEGRAM SENDER & MAIN FUNCTIONS (No changes) ---
