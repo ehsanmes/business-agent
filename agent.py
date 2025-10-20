@@ -7,11 +7,9 @@ from datetime import datetime, timedelta
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-# NEW IMPORT FOR HUGGING FACE
 from langchain_huggingface import HuggingFaceEndpoint
 
 # --- 1. CONFIGURATION ---
-# We now use the Hugging Face Token
 HF_TOKEN = os.environ.get("HF_TOKEN")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -35,18 +33,20 @@ DAYS_TO_CHECK = 5
 def get_recent_articles(feeds):
     print("Fetching recent articles...")
     all_articles = []
-    # ... (Code remains the same as before)
     cutoff_date = datetime.now() - timedelta(days=DAYS_TO_CHECK)
     for journal, url in feeds.items():
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries:
+                # Check for a valid published date
                 if hasattr(entry, 'published_parsed') and entry.published_parsed:
                     published_time = datetime(*entry.published_parsed[:6])
                     if published_time >= cutoff_date:
                         article = {
-                            "journal": journal, "title": entry.title,
-                            "link": entry.link, "summary": BeautifulSoup(entry.summary, 'html.parser').get_text(separator=' ', strip=True)
+                            "journal": journal,
+                            "title": entry.title,
+                            "link": entry.link,
+                            "summary": BeautifulSoup(entry.summary, 'html.parser').get_text(separator=' ', strip=True)
                         }
                         all_articles.append(article)
         except Exception as e:
@@ -54,8 +54,7 @@ def get_recent_articles(feeds):
     print(f"Found {len(all_articles)} new articles from RSS feeds.")
     return all_articles
 
-
-# --- AI LOGIC FUNCTION (Updated for Hugging Face) ---
+# --- AI LOGIC FUNCTION (Updated for new model and prompt) ---
 def analyze_articles_with_ai(articles):
     if not articles:
         return "No new articles found to analyze in the last few days."
@@ -65,27 +64,25 @@ def analyze_articles_with_ai(articles):
     for article in articles:
         articles_text += f"Journal: {article['journal']}\nTitle: {article['title']}\nSummary: {article['summary']}\n\n---\n\n"
 
-    # We use a slightly different prompt structure for open-source models
+    # A simplified and more direct prompt for the new model
     prompt_template = """
-    <|system|>
-    You are a world-class senior business research analyst. Analyze the following list of recently published articles and generate a concise, markdown-formatted 'Executive Dossier' with these sections: Executive Summary, Deep Dive, Strategic Synthesis, and On the Horizon.</s>
-    <|user|>
-    Analyze these articles:
-    {articles_text}</s>
-    <|assistant|>
+    Task: You are a world-class senior business research analyst. Analyze the following list of recently published articles and generate a concise, markdown-formatted 'Executive Dossier'.
+    The dossier must have these sections: Executive Summary, Deep Dive, Strategic Synthesis, and On the Horizon.
+
+    Here is the list of articles to analyze:
+    {articles_text}
+
+    Begin the 'Executive Dossier' now:
     """
     
     prompt = ChatPromptTemplate.from_template(prompt_template)
     
-    # Initialize the Hugging Face model endpoint
-    # We are using Mistral-7B, a powerful and popular open-source model
+    # Initialize the new, more compatible Hugging Face model endpoint
     model = HuggingFaceEndpoint(
-        repo_id="mistralai/Mistral-7B-Instruct-v0.2",
+        repo_id="google/flan-t5-xxl",  # <--- Changed to a highly compatible model
         huggingfacehub_api_token=HF_TOKEN,
-        temperature=0.7,
+        temperature=0.8,
         max_new_tokens=2048,
-        top_k=50,
-        top_p=0.95
     )
     
     chain = prompt | model | StrOutputParser()
@@ -98,11 +95,10 @@ async def send_report_to_telegram(report):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram secrets not found. Cannot send report.")
         return
-    # ... (Code remains the same as before)
+    
     print("Sending report to Telegram...")
     try:
         bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
-        # Add a title to the report before sending
         full_report = "## 📈 Daily Business & Academic Dossier\n\n" + report
         max_length = 4096
         for i in range(0, len(full_report), max_length):
