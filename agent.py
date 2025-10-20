@@ -17,7 +17,7 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 # The expanded and updated list of journals
 JOURNAL_FEEDS = {
     # Business Reviews
-    "Harvard Business Review": "https://hbr.org/rss/pre/latest",
+    "Harvard Business Review": "http://feeds.harvardbusiness.org/harvardbusiness/",
     "MIT Sloan Management Review": "https://sloanreview.mit.edu/feed/",
     "California Management Review": "https://cmr.berkeley.edu/feed/",
     
@@ -133,3 +133,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
