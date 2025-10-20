@@ -99,10 +99,10 @@ def analyze_articles_with_ai(articles):
     """
     prompt = ChatPromptTemplate.from_template(prompt_template)
     model = ChatOpenAI(
-    model="gpt-4o",
+    model="gpt-4o-mini",                  # <--- تغییر به مدل ارزان‌تر
     temperature=0.5,
     api_key=OPENAI_API_KEY,
-    base_url="https://api.avalai.com/v1"  # <--- این خط حیاتی است
+    base_url="https://api.avalapis.ir/v1"  # <--- تغییر به دامنه ثانویه
 )
     chain = prompt | model | StrOutputParser()
     report = chain.invoke({"articles_text": articles_text})
@@ -138,6 +138,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
