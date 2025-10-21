@@ -12,6 +12,6 @@ jobs:
     steps:
       - name: Call Hugging Face Space to Run Agent
         run: |
-          curl -X POST "https://ehsansouri-business-dossier-agent.hf.space/api/run_agent" \
+          curl -X POST "https://ehsansouri-business-dossier-agent.hf.space/api/predict" \
           -H "Content-Type: application/json" \
-          -d '{}'
+          -d '{"data": []}'
