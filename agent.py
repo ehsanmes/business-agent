@@ -2,11 +2,13 @@ import os
 import feedparser
 import telegram
 import time
+import asyncio
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-from langchain_huggingface import HuggingFaceEndpoint
+import google.generativeai as genai
 
-HF_TOKEN = os.environ.get("HF_TOKEN")
+# --- CONFIGURATION ---
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 JOURNAL_FEEDS = {
@@ -16,9 +18,9 @@ JOURNAL_FEEDS = {
 DAYS_TO_CHECK = 3
 
 def get_recent_articles(feeds):
-    # ... (function is correct)
     print("Fetching recent articles...")
     all_articles = []
+    # ... (This function is the same and correct)
     cutoff_date = datetime.now() - timedelta(days=DAYS_TO_CHECK)
     for journal, url in feeds.items():
         try:
@@ -32,21 +34,29 @@ def get_recent_articles(feeds):
     print(f"Found {len(all_articles)} new articles.")
     return all_articles
 
-def analyze_articles(articles, llm):
+def analyze_articles(articles, model):
     if not articles: return "No new articles found."
-    print(f"Analyzing {len(articles)} articles...")
+    print(f"Analyzing {len(articles)} articles one by one...")
     final_report_parts = []
     for i, article in enumerate(articles):
         print(f"Analyzing article {i+1}/{len(articles)}: {article['title']}")
-        prompt = f"[INST] You are a business analyst. Summarize this article in 3 key points:\n- Journal: {article['journal']}\n- Title: {article['title']}\n- Summary: {article['summary']} [/INST]"
+        prompt = f"""You are a senior business analyst. Analyze the following article and provide a concise, 3-point summary in markdown format. Focus on: 1. The core idea, 2. Why it matters, and 3. One actionable insight for a leader.
+
+Please analyze this article:
+- Journal: {article['journal']}
+- Title: {article['title']}
+- Summary: {article['summary']}
+"""
         try:
-            single_summary = llm.invoke(prompt)
+            # Direct call to Google's library, no LangChain
+            response = model.generate_content(prompt)
+            single_summary = response.text
             final_report_parts.append(f"### {article['title']}\n*Source: {article['journal']}*\n\n{single_summary}\n\n---\n")
         except Exception as e: print(f"Could not analyze article '{article['title']}'. Error: {e}")
-        print("Waiting for 5 seconds...")
-        time.sleep(5)
+        print("Waiting for 65 seconds to respect Google's rate limits...")
+        time.sleep(65)
     if not final_report_parts: return "Could not analyze any articles."
-    return "## 📈 Daily Dossier\n\n" + "".join(final_report_parts)
+    return "## 📈 Daily Strategic Intelligence Dossier\n\n" + "".join(final_report_parts)
 
 async def send_to_telegram(report, token, chat_id):
     if not token or not chat_id: return
@@ -59,20 +69,20 @@ async def send_to_telegram(report, token, chat_id):
     except Exception as e: print(f"Failed to send report. Error: {e}")
 
 def main():
-    import asyncio
-    if not HF_TOKEN:
-        print("Error: HF_TOKEN secret is not set.")
+    if not GOOGLE_API_KEY:
+        print("Error: GOOGLE_API_KEY secret is not set.")
         return
 
     try:
-        llm = HuggingFaceEndpoint(repo_id="mistralai/Mistral-7B-Instruct-v0.2", huggingfacehub_api_token=HF_TOKEN)
-        print("✅ Hugging Face endpoint configured.")
+        genai.configure(api_key=GOOGLE_API_KEY)
+        model = genai.GenerativeModel('gemini-pro') # Using the standard model name for this library
+        print("✅ Google Gemini model initialized successfully.")
     except Exception as e:
-        print(f"❌ Error initializing model: {e}")
+        print(f"❌ Critical error during model initialization: {e}")
         return
 
     articles = get_recent_articles(JOURNAL_FEEDS)
-    report = analyze_articles(articles, llm)
+    report = analyze_articles(articles, model)
     asyncio.run(send_to_telegram(report, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID))
     print("\n--- AGENT RUN FINISHED ---")
 
