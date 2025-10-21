@@ -1,5 +1,4 @@
-langchain-huggingface
+google-generativeai
 python-telegram-bot
 feedparser
 beautifulsoup4
-
