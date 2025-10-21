@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from langchain_huggingface import HuggingFaceEndpoint
 
-# --- CONFIGURATION ---
 HF_TOKEN = os.environ.get("HF_TOKEN")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -17,6 +16,7 @@ JOURNAL_FEEDS = {
 DAYS_TO_CHECK = 3
 
 def get_recent_articles(feeds):
+    # ... (function is correct)
     print("Fetching recent articles...")
     all_articles = []
     cutoff_date = datetime.now() - timedelta(days=DAYS_TO_CHECK)
@@ -33,21 +33,20 @@ def get_recent_articles(feeds):
     return all_articles
 
 def analyze_articles(articles, llm):
-    if not articles:
-        return "No new articles found."
-    print(f"Analyzing {len(articles)} articles one by one...")
+    if not articles: return "No new articles found."
+    print(f"Analyzing {len(articles)} articles...")
     final_report_parts = []
     for i, article in enumerate(articles):
         print(f"Analyzing article {i+1}/{len(articles)}: {article['title']}")
-        prompt = f"[INST] You are a senior business analyst. Analyze this article:\n- Journal: {article['journal']}\n- Title: {article['title']}\n- Summary: {article['summary']}\n\nProvide a concise, 3-point summary in markdown format (Core Idea, Why it Matters, Actionable Insight). [/INST]"
+        prompt = f"[INST] You are a business analyst. Summarize this article in 3 key points:\n- Journal: {article['journal']}\n- Title: {article['title']}\n- Summary: {article['summary']} [/INST]"
         try:
             single_summary = llm.invoke(prompt)
             final_report_parts.append(f"### {article['title']}\n*Source: {article['journal']}*\n\n{single_summary}\n\n---\n")
         except Exception as e: print(f"Could not analyze article '{article['title']}'. Error: {e}")
-        print("Waiting for 5 seconds to respect API rate limits...")
+        print("Waiting for 5 seconds...")
         time.sleep(5)
     if not final_report_parts: return "Could not analyze any articles."
-    return "## 📈 Daily Strategic Intelligence Dossier\n\n" + "".join(final_report_parts)
+    return "## 📈 Daily Dossier\n\n" + "".join(final_report_parts)
 
 async def send_to_telegram(report, token, chat_id):
     if not token or not chat_id: return
@@ -66,14 +65,10 @@ def main():
         return
 
     try:
-        llm = HuggingFaceEndpoint(
-            repo_id="mistralai/Mistral-7B-Instruct-v0.2",
-            huggingfacehub_api_token=HF_TOKEN,
-            task="text-generation",
-        )
-        print("✅ Hugging Face model endpoint configured successfully.")
+        llm = HuggingFaceEndpoint(repo_id="mistralai/Mistral-7B-Instruct-v0.2", huggingfacehub_api_token=HF_TOKEN)
+        print("✅ Hugging Face endpoint configured.")
     except Exception as e:
-        print(f"❌ Critical error during model initialization: {e}")
+        print(f"❌ Error initializing model: {e}")
         return
 
     articles = get_recent_articles(JOURNAL_FEEDS)
