@@ -1,4 +1,12 @@
-google-generativeai
-python-telegram-bot
+langchain-huggingface
+gradio
 feedparser
 beautifulsoup4
+python-telegram-bot
+fastapi
+uvicorn
+# Libraries for running the model in the Space
+transformers
+accelerate
+torch
+sentencepiece
