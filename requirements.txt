@@ -1,4 +1,4 @@
-langchain-google-genai
+langchain-huggingface
 python-telegram-bot
 feedparser
 beautifulsoup4
