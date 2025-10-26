@@ -26,7 +26,7 @@ JOURNAL_FEEDS = {
     "Journal of Business Venturing (Elsevier)": "https://rss.sciencedirect.com/publication/journals/08839026",
     "Journal of the Academy of Marketing Science (Springer)": "https://link.springer.com/journal/11747/rss.xml"
 }
-DAYS_TO_CHECK = 1 # <--- FIXED: Changed from 3 to 1
+DAYS_TO_CHECK = 3 # <--- FIXED: Changed from 3 to 1
 MODEL_TO_USE = "gpt-4o-mini"
 
 # --- 2. INITIALIZE THE AI CLIENT ---
