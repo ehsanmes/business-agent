@@ -13,7 +13,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 AVALAI_BASE_URL = "https://api.avalai.ir/v1"
 
-# --- FULL LIST OF JOURNALS ---
+# --- FULL LIST OF JOURNALS (FIXED) ---
 JOURNAL_FEEDS = {
     "Harvard Business Review": "http://feeds.harvardbusiness.org/harvardbusiness/",
     "MIT Sloan Management Review": "https://sloanreview.mit.edu/feed/",
@@ -26,7 +26,7 @@ JOURNAL_FEEDS = {
     "Journal of Business Venturing (Elsevier)": "https://rss.sciencedirect.com/publication/journals/08839026",
     "Journal of the Academy of Marketing Science (Springer)": "https://link.springer.com/journal/11747/rss.xml"
 }
-DAYS_TO_CHECK = 3 
+DAYS_TO_CHECK = 1 # <--- FIXED: Changed from 3 to 1
 MODEL_TO_USE = "gpt-4o-mini"
 
 # --- 2. INITIALIZE THE AI CLIENT ---
@@ -65,18 +65,27 @@ def get_recent_articles(feeds):
 
 def analyze_articles(articles):
     if not articles or client is None: 
-        return "No new articles found or AI client is unavailable."
+        # Create a basic report even if no articles are found
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=DAYS_TO_CHECK)
+        report_parts = [
+            f"## 📈 Daily Strategic Intelligence Dossier\n",
+            f"**🗓️ Reporting Period:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+            f"**📊 Articles Reviewed:** 0\n\n",
+            f"## Executive Summary\nNo new articles were found in the monitored journals within the last 24 hours."
+        ]
+        return "\n".join(report_parts)
 
     print(f"Analyzing {len(articles)} articles one by one (Step 1: Deep Dives)...")
     
     deep_dive_parts = []
     raw_summaries_for_exec_summary = []
 
-    # --- STEP 1: Loop through each article to get 1-2 line summaries ---
+    # --- STEP 1: Loop through each article for 1-2 line summaries ---
     for i, article in enumerate(articles):
         print(f"Analyzing article {i+1}/{len(articles)}: {article['title']}")
         
-        system_message = "You are a concise business analyst. Summarize the following article in a single, 1-2 line summary. Do not add any extra text or pleasantries."
+        system_message = "You are a concise business analyst. Summarize the following article in a single, 1-2 line summary. Do not add any extra text."
         user_message = f"Article:\n- Journal: {article['journal']}\n- Title: {article['title']}\n- Summary: {article['summary']}"
 
         try:
@@ -86,12 +95,11 @@ def analyze_articles(articles):
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": user_message},
                 ],
-                max_tokens=250, # Increased max tokens for summary
+                max_tokens=250,
                 temperature=0.5,
             )
             single_summary = completion.choices[0].message.content.strip()
             
-            # Add to the two lists
             deep_dive_parts.append(f"{i+1}. {single_summary} ([Link]({article['link']}))\n")
             raw_summaries_for_exec_summary.append(single_summary)
 
@@ -104,15 +112,17 @@ def analyze_articles(articles):
     if not deep_dive_parts: 
         return "Could not analyze any articles due to processing errors."
 
-    # --- STEP 2: Generate the Executive Summary ---
-    print("Generating Executive Summary (Step 2)...")
+    # --- STEP 2: Generate the Executive Summary (FIXED) ---
+    print("Waiting for 5 seconds before generating executive summary...")
+    time.sleep(5) # <--- FIXED: Added a pause to avoid rate limits
     
+    print("Generating Executive Summary (Step 2)...")
     all_summaries_text = "\n".join(raw_summaries_for_exec_summary)
     
     system_message_exec = "You are a senior business strategist. Read the following list of individual article summaries and write one cohesive paragraph (3-5 sentences) that synthetically summarizes the main, overarching themes and trends for a busy executive."
     user_message_exec = f"Here are today's article summaries:\n{all_summaries_text}"
     
-    executive_summary = "Could not generate executive summary." # Default value
+    executive_summary = "Could not generate executive summary due to an API error." # Default value
     
     try:
         completion = client.chat.completions.create(
@@ -121,7 +131,7 @@ def analyze_articles(articles):
                 {"role": "system", "content": system_message_exec},
                 {"role": "user", "content": user_message_exec},
             ],
-            max_tokens=1024, # More tokens for the summary
+            max_tokens=1024,
             temperature=0.7,
         )
         executive_summary = completion.choices[0].message.content.strip()
@@ -137,7 +147,7 @@ def analyze_articles(articles):
     report_parts = [
         f"## 📈 Daily Strategic Intelligence Dossier\n",
         f"**🗓️ Reporting Period:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
-        f"**📊 Articles Reviewed:** {len(articles)}\n\n",
+        f"**📊 Articles Reviewed:** {len(articles)}\n\n", # Correctly uses the number of found articles
         f"## Executive Summary\n{executive_summary}\n\n",
         f"## Deep Dives\n" + "".join(deep_dive_parts)
     ]
