@@ -34,7 +34,7 @@ JOURNAL_FEEDS = {
     "Knowledge at Wharton": "https://knowledge.wharton.upenn.edu/feed/",
     "Strategy Science": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=stsc"
 }
-DAYS_TO_CHECK = 10 # <--- FIXED: Changed from 3 to 1
+DAYS_TO_CHECK = 2 # <--- تغییر به درخواست شما (هر دو روز)
 MODEL_TO_USE = "gpt-4o-mini"
 
 # --- 2. INITIALIZE THE AI CLIENT ---
@@ -73,14 +73,13 @@ def get_recent_articles(feeds):
 
 def analyze_articles(articles):
     if not articles or client is None: 
-        # Create a basic report even if no articles are found
         end_date = datetime.now()
         start_date = end_date - timedelta(days=DAYS_TO_CHECK)
         report_parts = [
             f"## 📈 Daily Strategic Intelligence Dossier\n",
             f"**🗓️ Reporting Period:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
             f"**📊 Articles Reviewed:** 0\n\n",
-            f"## Executive Summary\nNo new articles were found in the monitored journals within the last 24 hours."
+            f"## Executive Summary\nNo new articles were found in the monitored journals within the last {DAYS_TO_CHECK} days."
         ]
         return "\n".join(report_parts)
 
@@ -88,8 +87,8 @@ def analyze_articles(articles):
     
     deep_dive_parts = []
     raw_summaries_for_exec_summary = []
+    successful_articles_count = 0 
 
-    # --- STEP 1: Loop through each article for 1-2 line summaries ---
     for i, article in enumerate(articles):
         print(f"Analyzing article {i+1}/{len(articles)}: {article['title']}")
         
@@ -108,7 +107,8 @@ def analyze_articles(articles):
             )
             single_summary = completion.choices[0].message.content.strip()
             
-            deep_dive_parts.append(f"{i+1}. {single_summary} ([Link]({article['link']}))\n")
+            successful_articles_count += 1 
+            deep_dive_parts.append(f"{successful_articles_count}. {single_summary} ([Link]({article['link']}))\n")
             raw_summaries_for_exec_summary.append(single_summary)
 
         except Exception as e:
@@ -120,9 +120,8 @@ def analyze_articles(articles):
     if not deep_dive_parts: 
         return "Could not analyze any articles due to processing errors."
 
-    # --- STEP 2: Generate the Executive Summary (FIXED) ---
     print("Waiting for 5 seconds before generating executive summary...")
-    time.sleep(5) # <--- FIXED: Added a pause to avoid rate limits
+    time.sleep(5) 
     
     print("Generating Executive Summary (Step 2)...")
     all_summaries_text = "\n".join(raw_summaries_for_exec_summary)
@@ -130,7 +129,7 @@ def analyze_articles(articles):
     system_message_exec = "You are a senior business strategist. Read the following list of individual article summaries and write one cohesive paragraph (3-5 sentences) that synthetically summarizes the main, overarching themes and trends for a busy executive."
     user_message_exec = f"Here are today's article summaries:\n{all_summaries_text}"
     
-    executive_summary = "Could not generate executive summary due to an API error." # Default value
+    executive_summary = "Could not generate executive summary due to an API error." 
     
     try:
         completion = client.chat.completions.create(
@@ -146,7 +145,6 @@ def analyze_articles(articles):
     except Exception as e:
         print(f"Could not generate executive summary. Error: {e}")
 
-    # --- STEP 3: Assemble the Final Report ---
     print("Assembling final report...")
     
     end_date = datetime.now()
@@ -155,7 +153,7 @@ def analyze_articles(articles):
     report_parts = [
         f"## 📈 Daily Strategic Intelligence Dossier\n",
         f"**🗓️ Reporting Period:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
-        f"**📊 Articles Reviewed:** {len(articles)}\n\n", # Correctly uses the number of found articles
+        f"**📊 Articles Reviewed:** {successful_articles_count}\n\n",
         f"## Executive Summary\n{executive_summary}\n\n",
         f"## Deep Dives\n" + "".join(deep_dive_parts)
     ]
@@ -175,7 +173,6 @@ async def send_to_telegram(report, token, chat_id):
     except Exception as e: 
         print(f"Failed to send report. Error: {e}")
 
-# --- 4. EXECUTION ---
 def main():
     if client is None:
         print("Error: AvalAI client could not be initialized. Check API Key secret.")
