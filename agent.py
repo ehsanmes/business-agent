@@ -13,7 +13,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 AVALAI_BASE_URL = "https://api.avalai.ir/v1"
 
-# --- FULL LIST OF JOURNALS (FIXED) ---
+# --- FULL LIST OF JOURNALS ---
 JOURNAL_FEEDS = {
     "Harvard Business Review": "http://feeds.harvardbusiness.org/harvardbusiness/",
     "MIT Sloan Management Review": "https://sloanreview.mit.edu/feed/",
@@ -34,7 +34,7 @@ JOURNAL_FEEDS = {
     "Knowledge at Wharton": "https://knowledge.wharton.upenn.edu/feed/",
     "Strategy Science": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=stsc"
 }
-DAYS_TO_CHECK = 3 
+DAYS_TO_CHECK = 1 
 MODEL_TO_USE = "gpt-4o-mini"
 
 # --- 2. INITIALIZE THE AI CLIENT ---
@@ -83,7 +83,7 @@ def analyze_articles(articles):
             f"## 📈 Daily Strategic Intelligence Dossier\n",
             f"**🗓️ Reporting Period:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
             f"**📊 Articles Reviewed:** 0\n\n",
-            f"## Executive Summary\nNo new articles were found in the monitored journals within the last {DAYS_TO_CHECK} days."
+            f"## Executive Summary\nNo new articles were found in the monitored journals within the last 24 hours."
         ]
         return "\n".join(report_parts)
 
@@ -112,20 +112,21 @@ def analyze_articles(articles):
             single_summary = completion.choices[0].message.content.strip()
             
             successful_articles_count += 1 
-            deep_dive_parts.append(f"{successful_articles_count}. {single_summary} ([Link]({article['link']}))\n") 
+            deep_dive_parts.append(f"{successful_articles_count}. {single_summary} (Link: {article['link']})\n") # Plain text link
             raw_summaries_for_exec_summary.append(single_summary)
 
         except Exception as e:
             print(f"Could not analyze article '{article['title']}'. Error: {e}")
         
-        print("Waiting for 3 seconds...")
-        time.sleep(3) 
+        # --- FIX 1: INCREASED WAIT TIME ---
+        print("Waiting for 15 seconds to respect API rate limits...")
+        time.sleep(15) 
 
     if not deep_dive_parts: 
         return "Could not analyze any articles due to processing errors."
 
-    print("Waiting for 5 seconds before generating executive summary...")
-    time.sleep(5) 
+    print("Waiting for 15 seconds before generating executive summary...")
+    time.sleep(15) # <--- Added a pause here too
     
     print("Generating Executive Summary (Step 2)...")
     all_summaries_text = "\n".join(raw_summaries_for_exec_summary)
@@ -159,7 +160,8 @@ def analyze_articles(articles):
         f"**🗓️ Reporting Period:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
         f"**📊 Articles Reviewed:** {successful_articles_count}\n\n",
         f"## Executive Summary\n{executive_summary}\n\n",
-        f"## Deep Dives\n" + "".join(deep_dive_parts)
+        f"## Deep Dives\n" + "".join(deep_dive_parts),
+        f"\n\n@Business_dossier 🚀" # Footer added here
     ]
     
     return "\n".join(report_parts)
@@ -175,7 +177,7 @@ async def send_to_telegram(report, token, chat_id):
             await bot.send_message(
                 chat_id=chat_id, 
                 text=report[i:i+4096], 
-                parse_mode='Markdown',
+                # --- FIX 2: REMOVED MARKDOWN TO PREVENT PARSE ERROR ---
                 disable_web_page_preview=True
             )
         print("Report successfully sent.")
@@ -190,13 +192,7 @@ def main():
 
     articles = get_recent_articles(JOURNAL_FEEDS)
     report = analyze_articles(articles)
-    
-    # --- ADD THE FOOTER HERE ---
-    footer = "\n\n@Business_dossier 🚀"
-    report_with_footer = report + footer
-    # --- END OF CHANGE ---
-
-    asyncio.run(send_to_telegram(report_with_footer, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID))
+    asyncio.run(send_to_telegram(report, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID))
     print("\n--- AGENT RUN FINISHED ---")
 
 if __name__ == "__main__":
