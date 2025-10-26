@@ -11,15 +11,23 @@ from openai import OpenAI
 AVALAI_API_KEY = os.environ.get("AVALAI_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-AVALAI_BASE_URL = "https://api.avalai.ir/v1" # استفاده از دامنه اصلی
+AVALAI_BASE_URL = "https://api.avalai.ir/v1"
 
+# --- FULL LIST OF JOURNALS ---
 JOURNAL_FEEDS = {
     "Harvard Business Review": "http://feeds.harvardbusiness.org/harvardbusiness/",
     "MIT Sloan Management Review": "https://sloanreview.mit.edu/feed/",
-    # ...می‌توانید منابع RSS بیشتری اینجا اضافه کنید
+    "California Management Review": "https://cmr.berkeley.edu/feed/",
+    "Journal of Management": "https://journals.sagepub.com/rss/loi_jom.xml",
+    "Strategic Management Journal": "https://onlinelibrary.wiley.com/feed/1467-6486/most-recent",
+    "Organization Science": "https://pubsonline.informs.org/rss/orgsci.xml",
+    "Journal of Marketing (AMA)": "https://www.ama.org/feed/?post_type=jm",
+    "Journal of Consumer Research (Oxford)": "https://academic.oup.com/jcr/rss/latest",
+    "Journal of Business Venturing (Elsevier)": "https://rss.sciencedirect.com/publication/journals/08839026",
+    "Journal of the Academy of Marketing Science (Springer)": "https://link.springer.com/journal/11747/rss.xml"
 }
-DAYS_TO_CHECK = 3 # بررسی مقالات ۳ روز گذشته
-MODEL_TO_USE = "gpt-4o-mini" # <--- مدل نهایی انتخابی شما
+DAYS_TO_CHECK = 3 
+MODEL_TO_USE = "gpt-4o-mini"
 
 # --- 2. INITIALIZE THE AI CLIENT ---
 client = None
@@ -59,14 +67,17 @@ def analyze_articles(articles):
     if not articles or client is None: 
         return "No new articles found or AI client is unavailable."
 
-    print(f"Analyzing {len(articles)} articles one by one...")
-    final_report_parts = []
+    print(f"Analyzing {len(articles)} articles one by one (Step 1: Deep Dives)...")
+    
+    deep_dive_parts = []
+    raw_summaries_for_exec_summary = []
 
+    # --- STEP 1: Loop through each article to get 1-2 line summaries ---
     for i, article in enumerate(articles):
         print(f"Analyzing article {i+1}/{len(articles)}: {article['title']}")
         
-        system_message = "You are a senior business analyst. Analyze the following article and provide a concise, 3-point summary in markdown format. Focus on: 1. The core idea, 2. Why it matters, and 3. One actionable insight for a leader."
-        user_message = f"Please analyze this article:\n\nJournal: {article['journal']}\nTitle: {article['title']}\nSummary: {article['summary']}"
+        system_message = "You are a concise business analyst. Summarize the following article in a single, 1-2 line summary. Do not add any extra text or pleasantries."
+        user_message = f"Article:\n- Journal: {article['journal']}\n- Title: {article['title']}\n- Summary: {article['summary']}"
 
         try:
             completion = client.chat.completions.create(
@@ -75,23 +86,63 @@ def analyze_articles(articles):
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": user_message},
                 ],
-                max_tokens=512,
-                temperature=0.7,
+                max_tokens=250, # Increased max tokens for summary
+                temperature=0.5,
             )
             single_summary = completion.choices[0].message.content.strip()
-            final_report_parts.append(f"### {article['title']}\n*Source: {article['journal']}*\n\n{single_summary}\n\n---\n")
+            
+            # Add to the two lists
+            deep_dive_parts.append(f"{i+1}. {single_summary} ([Link]({article['link']}))\n")
+            raw_summaries_for_exec_summary.append(single_summary)
+
         except Exception as e:
             print(f"Could not analyze article '{article['title']}'. Error: {e}")
-            final_report_parts.append(f"### {article['title']}\n*Source: {article['journal']}*\n\n---\n*Could not be analyzed due to an API error.*\n\n---\n")
         
-        # وقفه کوتاه برای احترام به محدودیت‌های احتمالی API
-        print("Waiting for 5 seconds...")
-        time.sleep(5) 
+        print("Waiting for 3 seconds...")
+        time.sleep(3) 
 
-    if not final_report_parts: 
+    if not deep_dive_parts: 
         return "Could not analyze any articles due to processing errors."
+
+    # --- STEP 2: Generate the Executive Summary ---
+    print("Generating Executive Summary (Step 2)...")
     
-    return "## 📈 Daily Strategic Intelligence Dossier\n\n" + "".join(final_report_parts)
+    all_summaries_text = "\n".join(raw_summaries_for_exec_summary)
+    
+    system_message_exec = "You are a senior business strategist. Read the following list of individual article summaries and write one cohesive paragraph (3-5 sentences) that synthetically summarizes the main, overarching themes and trends for a busy executive."
+    user_message_exec = f"Here are today's article summaries:\n{all_summaries_text}"
+    
+    executive_summary = "Could not generate executive summary." # Default value
+    
+    try:
+        completion = client.chat.completions.create(
+            model=MODEL_TO_USE,
+            messages=[
+                {"role": "system", "content": system_message_exec},
+                {"role": "user", "content": user_message_exec},
+            ],
+            max_tokens=1024, # More tokens for the summary
+            temperature=0.7,
+        )
+        executive_summary = completion.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Could not generate executive summary. Error: {e}")
+
+    # --- STEP 3: Assemble the Final Report ---
+    print("Assembling final report...")
+    
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=DAYS_TO_CHECK)
+    
+    report_parts = [
+        f"## 📈 Daily Strategic Intelligence Dossier\n",
+        f"**🗓️ Reporting Period:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+        f"**📊 Articles Reviewed:** {len(articles)}\n\n",
+        f"## Executive Summary\n{executive_summary}\n\n",
+        f"## Deep Dives\n" + "".join(deep_dive_parts)
+    ]
+    
+    return "\n".join(report_parts)
 
 async def send_to_telegram(report, token, chat_id):
     if not token or not chat_id: 
@@ -100,7 +151,7 @@ async def send_to_telegram(report, token, chat_id):
     print("Sending report to Telegram...")
     try:
         bot = telegram.Bot(token=token)
-        for i in range(0, len(report), 4096): # ارسال پیام‌های طولانی در چند بخش
+        for i in range(0, len(report), 4096): 
             await bot.send_message(chat_id=chat_id, text=report[i:i+4096], parse_mode='Markdown')
         print("Report successfully sent.")
     except Exception as e: 
