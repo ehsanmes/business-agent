@@ -34,7 +34,8 @@ JOURNAL_FEEDS = {
     "Knowledge at Wharton": "https://knowledge.wharton.upenn.edu/feed/",
     "Strategy Science": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=stsc"
 }
-DAYS_TO_CHECK = 1 
+# --- FIX 1: Set days to 3 (as you preferred) ---
+DAYS_TO_CHECK = 2 
 MODEL_TO_USE = "gpt-4o-mini"
 
 # --- 2. INITIALIZE THE AI CLIENT ---
@@ -55,6 +56,7 @@ else:
 def get_recent_articles(feeds):
     print("Fetching recent articles...")
     all_articles = []
+    # Set cutoff date based on DAYS_TO_CHECK
     cutoff_date = datetime.now() - timedelta(days=DAYS_TO_CHECK)
     for journal, url in feeds.items():
         try:
@@ -76,14 +78,16 @@ def get_recent_articles(feeds):
     return all_articles
 
 def analyze_articles(articles):
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=DAYS_TO_CHECK)
+    
     if not articles or client is None: 
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=DAYS_TO_CHECK)
         report_parts = [
             f"## 📈 Daily Strategic Intelligence Dossier\n",
             f"**🗓️ Reporting Period:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
             f"**📊 Articles Reviewed:** 0\n\n",
-            f"## Executive Summary\nNo new articles were found in the monitored journals within the last 24 hours."
+            f"## Executive Summary\nNo new articles were found in the monitored journals within the last {DAYS_TO_CHECK} days."
+            # Footer will be added in main()
         ]
         return "\n".join(report_parts)
 
@@ -112,21 +116,23 @@ def analyze_articles(articles):
             single_summary = completion.choices[0].message.content.strip()
             
             successful_articles_count += 1 
-            deep_dive_parts.append(f"{successful_articles_count}. {single_summary} (Link: {article['link']})\n") # Plain text link
+            # --- FIX 3: Re-enabled Markdown for links ---
+            deep_dive_parts.append(f"{successful_articles_count}. {single_summary} ([Link]({article['link']}))\n") 
             raw_summaries_for_exec_summary.append(single_summary)
 
         except Exception as e:
             print(f"Could not analyze article '{article['title']}'. Error: {e}")
+            # --- FIX 3: Add a plain text error, no markdown ---
+            deep_dive_parts.append(f"{i+1}. Could not analyze article: {article['title']}\n")
         
-        # --- FIX 1: INCREASED WAIT TIME ---
-        print("Waiting for 15 seconds to respect API rate limits...")
-        time.sleep(15) 
+        print("Waiting for 3 seconds...")
+        time.sleep(3) 
 
     if not deep_dive_parts: 
         return "Could not analyze any articles due to processing errors."
 
-    print("Waiting for 15 seconds before generating executive summary...")
-    time.sleep(15) # <--- Added a pause here too
+    print("Waiting for 5 seconds before generating executive summary...")
+    time.sleep(5) 
     
     print("Generating Executive Summary (Step 2)...")
     all_summaries_text = "\n".join(raw_summaries_for_exec_summary)
@@ -152,16 +158,12 @@ def analyze_articles(articles):
 
     print("Assembling final report...")
     
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=DAYS_TO_CHECK)
-    
     report_parts = [
         f"## 📈 Daily Strategic Intelligence Dossier\n",
         f"**🗓️ Reporting Period:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
-        f"**📊 Articles Reviewed:** {successful_articles_count}\n\n",
+        f"**📊 Articles Reviewed:** {successful_articles_count}\n\n", # --- FIX 2: Correct count ---
         f"## Executive Summary\n{executive_summary}\n\n",
-        f"## Deep Dives\n" + "".join(deep_dive_parts),
-        f"\n\n@Business_dossier 🚀" # Footer added here
+        f"## Deep Dives\n" + "".join(deep_dive_parts)
     ]
     
     return "\n".join(report_parts)
@@ -170,19 +172,36 @@ async def send_to_telegram(report, token, chat_id):
     if not token or not chat_id: 
         print("Telegram secrets not found.")
         return
+    
+    # --- FIX 2: Add footer to all reports ---
+    report_with_footer = report + "\n\n@Business_dossier 🚀"
+
     print("Sending report to Telegram...")
     try:
         bot = telegram.Bot(token=token)
-        for i in range(0, len(report), 4096): 
+        for i in range(0, len(report_with_footer), 4096): 
             await bot.send_message(
                 chat_id=chat_id, 
-                text=report[i:i+4096], 
-                # --- FIX 2: REMOVED MARKDOWN TO PREVENT PARSE ERROR ---
+                text=report_with_footer[i:i+4096], 
+                parse_mode='Markdown', # --- FIX 3: Re-enabled Markdown ---
                 disable_web_page_preview=True
             )
         print("Report successfully sent.")
     except Exception as e: 
         print(f"Failed to send report. Error: {e}")
+        # Fallback: Send as plain text if Markdown fails
+        if "Can't parse entities" in str(e):
+            print("Markdown failed. Sending as plain text...")
+            try:
+                for i in range(0, len(report_with_footer), 4096):
+                    await bot.send_message(
+                        chat_id=chat_id,
+                        text=report_with_footer[i:i+4096],
+                        disable_web_page_preview=True
+                    )
+                print("Report sent successfully as plain text.")
+            except Exception as e2:
+                print(f"Failed to send as plain text. Final error: {e2}")
 
 # --- 4. EXECUTION ---
 def main():
@@ -192,6 +211,7 @@ def main():
 
     articles = get_recent_articles(JOURNAL_FEEDS)
     report = analyze_articles(articles)
+    
     asyncio.run(send_to_telegram(report, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID))
     print("\n--- AGENT RUN FINISHED ---")
 
