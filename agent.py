@@ -13,11 +13,10 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 AVALAI_BASE_URL = "https://api.avalai.ir/v1"
 
-# --- FULL LIST OF JOURNALS (FIXED) ---
 JOURNAL_FEEDS = {
     "Harvard Business Review": "http://feeds.harvardbusiness.org/harvardbusiness/",
     "MIT Sloan Management Review": "https://sloanreview.mit.edu/feed/",
-    "Califirnia Management Review": "https://journals.sagepub.com/action/showFeed?jc=cmr&type=etoc&feed=rss",
+    "California Management Review": "https://journals.sagepub.com/action/showFeed?jc=cmr&type=etoc&feed=rss",
     "London Business School Review": "https://admissionsblog.london.edu/feed/",
     "AMR": "https://journals.aom.org/action/showFeed?type=etoc&feed=rss&jc=amr",
     "SMJ": "https://onlinelibrary.wiley.com/feed/10970266/most-recent",
@@ -34,7 +33,7 @@ JOURNAL_FEEDS = {
     "Knowledge at Wharton": "https://knowledge.wharton.upenn.edu/feed/",
     "Strategy Science": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=stsc"
 }
-DAYS_TO_CHECK = 2 # <--- تغییر به درخواست شما (هر دو روز)
+DAYS_TO_CHECK = 3 # شما این را به ۳ تغییر دادید
 MODEL_TO_USE = "gpt-4o-mini"
 
 # --- 2. INITIALIZE THE AI CLIENT ---
@@ -59,6 +58,10 @@ def get_recent_articles(feeds):
     for journal, url in feeds.items():
         try:
             feed = feedparser.parse(url)
+            if not feed.entries:
+                print(f"No entries found for {journal}.")
+                continue
+                
             for entry in feed.entries:
                 published_time_struct = getattr(entry, 'published_parsed', None)
                 if published_time_struct:
@@ -68,7 +71,7 @@ def get_recent_articles(feeds):
                         all_articles.append(article)
         except Exception as e: 
             print(f"Could not fetch or parse feed for {journal}. Error: {e}")
-    print(f"Found {len(all_articles)} new articles.")
+    print(f"Found {len(all_articles)} new articles across all feeds.")
     return all_articles
 
 def analyze_articles(articles):
@@ -108,7 +111,7 @@ def analyze_articles(articles):
             single_summary = completion.choices[0].message.content.strip()
             
             successful_articles_count += 1 
-            deep_dive_parts.append(f"{successful_articles_count}. {single_summary} ([Link]({article['link']}))\n")
+            deep_dive_parts.append(f"{successful_articles_count}. {single_summary} ([Link]({article['link']}))\n") 
             raw_summaries_for_exec_summary.append(single_summary)
 
         except Exception as e:
@@ -168,11 +171,17 @@ async def send_to_telegram(report, token, chat_id):
     try:
         bot = telegram.Bot(token=token)
         for i in range(0, len(report), 4096): 
-            await bot.send_message(chat_id=chat_id, text=report[i:i+4096], parse_mode='Markdown')
+            await bot.send_message(
+                chat_id=chat_id, 
+                text=report[i:i+4096], 
+                parse_mode='Markdown',
+                disable_web_page_preview=True  # <--- این خط اضافه شد
+            )
         print("Report successfully sent.")
     except Exception as e: 
         print(f"Failed to send report. Error: {e}")
 
+# --- 4. EXECUTION ---
 def main():
     if client is None:
         print("Error: AvalAI client could not be initialized. Check API Key secret.")
