@@ -34,7 +34,7 @@ JOURNAL_FEEDS = {
     "Knowledge at Wharton": "https://knowledge.wharton.upenn.edu/feed/",
     "Strategy Science": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=stsc"
 }
-DAYS_TO_CHECK = 1 # <--- FIXED: Changed from 3 to 1
+DAYS_TO_CHECK = 2 # <--- FIXED: Changed from 3 to 1
 MODEL_TO_USE = "gpt-4o-mini"
 
 # --- 2. INITIALIZE THE AI CLIENT ---
