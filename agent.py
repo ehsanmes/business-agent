@@ -117,7 +117,7 @@ def analyze_articles(articles):
             
             successful_articles_count += 1 
             # --- FIX 3: Re-enabled Markdown for links ---
-            deep_dive_parts.append(f"{successful_articles_count}. {single_summary} ([Link]({article['link']}))\n") 
+            deep_dive_parts.append(f"{successful_articles_count}. {single_summary} [Link]({article['link']})\n") 
             raw_summaries_for_exec_summary.append(single_summary)
 
         except Exception as e:
