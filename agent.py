@@ -97,7 +97,7 @@ def analyze_articles(articles):
         print(f"Analyzing article {i+1}/{len(articles)}: {article['title']}")
         
         # --- FIX: Changed prompt to ask for plain text, no markdown ---
-        system_message = "You are a concise business analyst. Summarize the following article in a single, 1-2 line summary. Do not use markdown or special characters."
+        system_message = "You are a sharp business analyst. Summarize the following article in a clear, 3-4 sentence paragraph. Explain the core argument and its main takeaway for a business leader. Do not use markdown or special characters."
         user_message = f"Article:\n- Journal: {article['journal']}\n- Title: {article['title']}\n- Summary: {article['summary']}"
 
         try:
