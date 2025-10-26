@@ -13,6 +13,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 AVALAI_BASE_URL = "https://api.avalai.ir/v1"
 
+# --- FULL LIST OF JOURNALS (FIXED) ---
 JOURNAL_FEEDS = {
     "Harvard Business Review": "http://feeds.harvardbusiness.org/harvardbusiness/",
     "MIT Sloan Management Review": "https://sloanreview.mit.edu/feed/",
@@ -33,7 +34,7 @@ JOURNAL_FEEDS = {
     "Knowledge at Wharton": "https://knowledge.wharton.upenn.edu/feed/",
     "Strategy Science": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=stsc"
 }
-DAYS_TO_CHECK = 3 # شما این را به ۳ تغییر دادید
+DAYS_TO_CHECK = 3 
 MODEL_TO_USE = "gpt-4o-mini"
 
 # --- 2. INITIALIZE THE AI CLIENT ---
@@ -175,7 +176,7 @@ async def send_to_telegram(report, token, chat_id):
                 chat_id=chat_id, 
                 text=report[i:i+4096], 
                 parse_mode='Markdown',
-                disable_web_page_preview=True  # <--- این خط اضافه شد
+                disable_web_page_preview=True
             )
         print("Report successfully sent.")
     except Exception as e: 
@@ -189,7 +190,13 @@ def main():
 
     articles = get_recent_articles(JOURNAL_FEEDS)
     report = analyze_articles(articles)
-    asyncio.run(send_to_telegram(report, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID))
+    
+    # --- ADD THE FOOTER HERE ---
+    footer = "\n\n@Business_dossier 🚀"
+    report_with_footer = report + footer
+    # --- END OF CHANGE ---
+
+    asyncio.run(send_to_telegram(report_with_footer, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID))
     print("\n--- AGENT RUN FINISHED ---")
 
 if __name__ == "__main__":
