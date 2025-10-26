@@ -15,23 +15,23 @@ AVALAI_BASE_URL = "https://api.avalai.ir/v1"
 
 # --- FULL LIST OF JOURNALS (FIXED) ---
 JOURNAL_FEEDS = {
-    "Harvard Business Review": "http://feeds.harvardbusiness.org/harvardbusiness/", 
-    "MIT Sloan Management Review": "https://sloanreview.mit.edu/feed/", 
-    "Califirnia Management Review": "https://journals.sagepub.com/action/showFeed?jc=cmr&type=etoc&feed=rss"
-    "London Business School Review": "https://admissionsblog.london.edu/feed/"
-    "AMR": "https://journals.aom.org/action/showFeed?type=etoc&feed=rss&jc=amr"
-    "SMJ": "https://onlinelibrary.wiley.com/feed/10970266/most-recent"
-    "AMJ": "https://journals.aom.org/action/showFeed?type=etoc&feed=rss&jc=amj"
-    "OrgSci": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=orsc"
-    "ManSci": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=mnsc"
-    "JM": "https://journals.sagepub.com/action/showFeed?jc=joma&type=etoc&feed=rss"
-    "JoM": "https://journals.sagepub.com/action/showFeed?jc=jmxa&type=etoc&feed=rss"
-    "Research Policy": "https://rss.sciencedirect.com/publication/science/00487333"
-    "ASQ": "https://journals.sagepub.com/action/showFeed?jc=asqa&type=etoc&feed=rss"
-    "Deloitte": "https://deloitteuniversitypress.libsyn.com/rss"
-    "Mackinsey": "https://www.mckinsey.com/rss"
-    "Insead": "https://knowledge.insead.edu/rss.xml"
-    "Knowledge at Wharton": "https://knowledge.wharton.upenn.edu/feed/"
+    "Harvard Business Review": "http://feeds.harvardbusiness.org/harvardbusiness/",
+    "MIT Sloan Management Review": "https://sloanreview.mit.edu/feed/",
+    "Califirnia Management Review": "https://journals.sagepub.com/action/showFeed?jc=cmr&type=etoc&feed=rss",
+    "London Business School Review": "https://admissionsblog.london.edu/feed/",
+    "AMR": "https://journals.aom.org/action/showFeed?type=etoc&feed=rss&jc=amr",
+    "SMJ": "https://onlinelibrary.wiley.com/feed/10970266/most-recent",
+    "AMJ": "https://journals.aom.org/action/showFeed?type=etoc&feed=rss&jc=amj",
+    "OrgSci": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=orsc",
+    "ManSci": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=mnsc",
+    "JM": "https://journals.sagepub.com/action/showFeed?jc=joma&type=etoc&feed=rss",
+    "JoM": "https://journals.sagepub.com/action/showFeed?jc=jmxa&type=etoc&feed=rss",
+    "Research Policy": "https://rss.sciencedirect.com/publication/science/00487333",
+    "ASQ": "https://journals.sagepub.com/action/showFeed?jc=asqa&type=etoc&feed=rss",
+    "Deloitte": "https://deloitteuniversitypress.libsyn.com/rss",
+    "Mackinsey": "https://www.mckinsey.com/rss",
+    "Insead": "https://knowledge.insead.edu/rss.xml",
+    "Knowledge at Wharton": "https://knowledge.wharton.upenn.edu/feed/",
     "Strategy Science": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=stsc"
 }
 DAYS_TO_CHECK = 1 # <--- FIXED: Changed from 3 to 1
