@@ -13,7 +13,6 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 AVALAI_BASE_URL = "https://api.avalai.ir/v1"
 
-# --- FULL LIST OF JOURNALS ---
 JOURNAL_FEEDS = {
     "Harvard Business Review": "http://feeds.harvardbusiness.org/harvardbusiness/",
     "MIT Sloan Management Review": "https://sloanreview.mit.edu/feed/",
@@ -34,7 +33,6 @@ JOURNAL_FEEDS = {
     "Knowledge at Wharton": "https://knowledge.wharton.upenn.edu/feed/",
     "Strategy Science": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=stsc"
 }
-# --- FIX 1: Set days to 3 (as you preferred) ---
 DAYS_TO_CHECK = 2 
 MODEL_TO_USE = "gpt-4o-mini"
 
@@ -56,7 +54,6 @@ else:
 def get_recent_articles(feeds):
     print("Fetching recent articles...")
     all_articles = []
-    # Set cutoff date based on DAYS_TO_CHECK
     cutoff_date = datetime.now() - timedelta(days=DAYS_TO_CHECK)
     for journal, url in feeds.items():
         try:
@@ -83,11 +80,10 @@ def analyze_articles(articles):
     
     if not articles or client is None: 
         report_parts = [
-            f"## 📈 Daily Strategic Intelligence Dossier\n",
-            f"**🗓️ Reporting Period:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
-            f"**📊 Articles Reviewed:** 0\n\n",
-            f"## Executive Summary\nNo new articles were found in the monitored journals within the last {DAYS_TO_CHECK} days."
-            # Footer will be added in main()
+            f"<b>📈 Daily Strategic Intelligence Dossier</b>\n",
+            f"<b>🗓️ Reporting Period:</b> {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+            f"<b>📊 Articles Reviewed:</b> 0\n\n",
+            f"<b>Executive Summary</b>\nNo new articles were found in the monitored journals within the last {DAYS_TO_CHECK} days."
         ]
         return "\n".join(report_parts)
 
@@ -100,7 +96,8 @@ def analyze_articles(articles):
     for i, article in enumerate(articles):
         print(f"Analyzing article {i+1}/{len(articles)}: {article['title']}")
         
-        system_message = "You are a concise business analyst. Summarize the following article in a single, 1-2 line summary. Do not add any extra text."
+        # --- FIX: Changed prompt to ask for plain text, no markdown ---
+        system_message = "You are a concise business analyst. Summarize the following article in a single, 1-2 line summary. Do not use markdown or special characters."
         user_message = f"Article:\n- Journal: {article['journal']}\n- Title: {article['title']}\n- Summary: {article['summary']}"
 
         try:
@@ -116,13 +113,12 @@ def analyze_articles(articles):
             single_summary = completion.choices[0].message.content.strip()
             
             successful_articles_count += 1 
-            # --- FIX 3: Re-enabled Markdown for links ---
-            deep_dive_parts.append(f"{successful_articles_count}. {single_summary} [Link]({article['link']})\n") 
+            # --- FIX: Changed formatting to HTML ---
+            deep_dive_parts.append(f"{successful_articles_count}. {single_summary} <a href=\"{article['link']}\">[Link]</a>\n") 
             raw_summaries_for_exec_summary.append(single_summary)
 
         except Exception as e:
             print(f"Could not analyze article '{article['title']}'. Error: {e}")
-            # --- FIX 3: Add a plain text error, no markdown ---
             deep_dive_parts.append(f"{i+1}. Could not analyze article: {article['title']}\n")
         
         print("Waiting for 3 seconds...")
@@ -137,7 +133,8 @@ def analyze_articles(articles):
     print("Generating Executive Summary (Step 2)...")
     all_summaries_text = "\n".join(raw_summaries_for_exec_summary)
     
-    system_message_exec = "You are a senior business strategist. Read the following list of individual article summaries and write one cohesive paragraph (3-5 sentences) that synthetically summarizes the main, overarching themes and trends for a busy executive."
+    # --- FIX: Changed prompt to ask for plain text, no markdown ---
+    system_message_exec = "You are a senior business strategist. Read the following list of individual article summaries and write one cohesive paragraph (3-5 sentences) that synthetically summarizes the main, overarching themes and trends for a busy executive. Do not use markdown or special characters."
     user_message_exec = f"Here are today's article summaries:\n{all_summaries_text}"
     
     executive_summary = "Could not generate executive summary due to an API error." 
@@ -158,12 +155,13 @@ def analyze_articles(articles):
 
     print("Assembling final report...")
     
+    # --- FIX: Changed all formatting to HTML ---
     report_parts = [
-        f"## 📈 Daily Strategic Intelligence Dossier\n",
-        f"**🗓️ Reporting Period:** {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
-        f"**📊 Articles Reviewed:** {successful_articles_count}\n\n", # --- FIX 2: Correct count ---
-        f"## Executive Summary\n{executive_summary}\n\n",
-        f"## Deep Dives\n" + "".join(deep_dive_parts)
+        f"<b>📈 Daily Strategic Intelligence Dossier</b>\n",
+        f"<b>🗓️ Reporting Period:</b> {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+        f"<b>📊 Articles Reviewed:</b> {successful_articles_count}\n\n",
+        f"<b>Executive Summary</b>\n{executive_summary}\n\n",
+        f"<b>Deep Dives</b>\n" + "".join(deep_dive_parts)
     ]
     
     return "\n".join(report_parts)
@@ -173,7 +171,6 @@ async def send_to_telegram(report, token, chat_id):
         print("Telegram secrets not found.")
         return
     
-    # --- FIX 2: Add footer to all reports ---
     report_with_footer = report + "\n\n@Business_dossier 🚀"
 
     print("Sending report to Telegram...")
@@ -183,25 +180,12 @@ async def send_to_telegram(report, token, chat_id):
             await bot.send_message(
                 chat_id=chat_id, 
                 text=report_with_footer[i:i+4096], 
-                parse_mode='Markdown', # --- FIX 3: Re-enabled Markdown ---
+                parse_mode='HTML', # --- FIX: Changed to HTML ---
                 disable_web_page_preview=True
             )
         print("Report successfully sent.")
     except Exception as e: 
         print(f"Failed to send report. Error: {e}")
-        # Fallback: Send as plain text if Markdown fails
-        if "Can't parse entities" in str(e):
-            print("Markdown failed. Sending as plain text...")
-            try:
-                for i in range(0, len(report_with_footer), 4096):
-                    await bot.send_message(
-                        chat_id=chat_id,
-                        text=report_with_footer[i:i+4096],
-                        disable_web_page_preview=True
-                    )
-                print("Report sent successfully as plain text.")
-            except Exception as e2:
-                print(f"Failed to send as plain text. Final error: {e2}")
 
 # --- 4. EXECUTION ---
 def main():
