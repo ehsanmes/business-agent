@@ -1,15 +1,29 @@
-name: Daily Business Dossier Trigger
+name: Daily Business Dossier Agent
 
 on:
   schedule:
-    # Runs every day at 02:30 UTC (which is 6:00 AM Iran Time)
+    # اجرا در ساعت ۰۲:۳۰ UTC (۶ صبح به وقت ایران)
     - cron: '30 2 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # اجازه اجرای دستی
 
 jobs:
-  trigger-huggingface-space:
+  build-and-run:
     runs-on: ubuntu-latest
     steps:
-      - name: Call Hugging Face Space to Run Agent
-        run: |
-          curl -X POST "https://ehsansouri-business-dossier-agent.hf.space/run"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run the agent
+        env:
+          AVALAI_API_KEY: ${{ secrets.AVALAI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python agent.py
