@@ -33,7 +33,8 @@ JOURNAL_FEEDS = {
     "Knowledge at Wharton": "https://knowledge.wharton.upenn.edu/feed/",
     "Strategy Science": "https://pubsonline.informs.org/action/showFeed?type=etoc&feed=rss&jc=stsc"
 }
-DAYS_TO_CHECK = 2 
+# --- FIX 1: Change to 1 day to reduce article count ---
+DAYS_TO_CHECK = 1 
 MODEL_TO_USE = "gpt-4o-mini"
 
 # --- 2. INITIALIZE THE AI CLIENT ---
@@ -96,7 +97,6 @@ def analyze_articles(articles):
     for i, article in enumerate(articles):
         print(f"Analyzing article {i+1}/{len(articles)}: {article['title']}")
         
-        # --- FIX: Changed prompt to ask for plain text, no markdown ---
         system_message = "You are a sharp business analyst. Summarize the following article in a clear, 3-4 sentence paragraph. Explain the core argument and its main takeaway for a business leader in less than 100 words . Do not use markdown or special characters."
         user_message = f"Article:\n- Journal: {article['journal']}\n- Title: {article['title']}\n- Summary: {article['summary']}"
 
@@ -113,7 +113,6 @@ def analyze_articles(articles):
             single_summary = completion.choices[0].message.content.strip()
             
             successful_articles_count += 1 
-            # --- FIX: Changed formatting to HTML ---
             deep_dive_parts.append(f"{successful_articles_count}. {single_summary} <a href=\"{article['link']}\">[Link]</a>\n") 
             raw_summaries_for_exec_summary.append(single_summary)
 
@@ -121,19 +120,20 @@ def analyze_articles(articles):
             print(f"Could not analyze article '{article['title']}'. Error: {e}")
             deep_dive_parts.append(f"{i+1}. Could not analyze article: {article['title']}\n")
         
-        print("Waiting for 3 seconds...")
-        time.sleep(3) 
+        # --- FIX 2: Increase wait time to 10 seconds ---
+        print("Waiting for 10 seconds...")
+        time.sleep(10) 
 
     if not deep_dive_parts: 
         return "Could not analyze any articles due to processing errors."
 
-    print("Waiting for 5 seconds before generating executive summary...")
-    time.sleep(5) 
+    # --- FIX 2: Increase wait time to 10 seconds ---
+    print("Waiting for 10 seconds before generating executive summary...")
+    time.sleep(10) 
     
     print("Generating Executive Summary (Step 2)...")
     all_summaries_text = "\n".join(raw_summaries_for_exec_summary)
     
-    # --- FIX: Changed prompt to ask for plain text, no markdown ---
     system_message_exec = "You are a senior business strategist. Read the following list of individual article summaries and write one cohesive paragraph (3-5 sentences) that synthetically summarizes the main, overarching themes and trends for a busy executive. Do not use markdown or special characters."
     user_message_exec = f"Here are today's article summaries:\n{all_summaries_text}"
     
@@ -155,7 +155,6 @@ def analyze_articles(articles):
 
     print("Assembling final report...")
     
-    # --- FIX: Changed all formatting to HTML ---
     report_parts = [
         f"<b>📈 Daily Strategic Intelligence Dossier</b>\n",
         f"<b>🗓️ Reporting Period:</b> {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
@@ -180,12 +179,26 @@ async def send_to_telegram(report, token, chat_id):
             await bot.send_message(
                 chat_id=chat_id, 
                 text=report_with_footer[i:i+4096], 
-                parse_mode='HTML', # --- FIX: Changed to HTML ---
+                parse_mode='HTML',
                 disable_web_page_preview=True
             )
         print("Report successfully sent.")
     except Exception as e: 
         print(f"Failed to send report. Error: {e}")
+        # Fallback to plain text if HTML parsing fails
+        if "Can't parse entities" in str(e):
+            print("HTML parse failed. Sending as plain text...")
+            try:
+                for i in range(0, len(report_with_footer), 4096):
+                    await bot.send_message(
+                        chat_id=chat_id,
+                        text=report_with_footer[i:i+4096],
+                        disable_web_page_preview=True
+                    )
+                print("Report sent successfully as plain text.")
+            except Exception as e2:
+                print(f"Failed to send as plain text. Final error: {e2}")
+
 
 # --- 4. EXECUTION ---
 def main():
