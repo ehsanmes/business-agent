@@ -2,8 +2,9 @@ name: Daily Business Dossier Agent
 
 on:
   schedule:
-    # اجرا در ساعت 16:30 UTC (۸ شب به وقت ایران) - هر دو روز یک بار
-    - cron: '30 16 */2 * *'
+    # --- FIX 3: Change schedule to run EVERY day ---
+    # اجرا در ساعت 16:30 UTC (۸ شب به وقت ایران) - هر روز
+    - cron: '30 16 * * *'
   workflow_dispatch: # اجازه اجرای دستی
 
 jobs:
