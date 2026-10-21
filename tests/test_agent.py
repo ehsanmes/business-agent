@@ -116,3 +116,12 @@ def test_split_into_messages_handles_oversized_block():
     messages = agent.split_into_messages(["<b>" + "&" * 500 + "</b>"], limit=100)
     assert all(len(m) <= 100 for m in messages)
     assert all("<b>" not in m for m in messages)
+
+
+def test_share_button_links_to_first_message():
+    first = SimpleNamespace(link="https://t.me/Business_dossier/123")
+    markup = agent.share_button(first, "Dossier")
+    url = markup.inline_keyboard[0][0].url
+    assert url.startswith("https://t.me/share/url?")
+    assert "url=https%3A%2F%2Ft.me%2FBusiness_dossier%2F123" in url
+    assert agent.share_button(SimpleNamespace(link=None), "Dossier") is None

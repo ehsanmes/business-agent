@@ -6,6 +6,7 @@ import time
 import socket
 import asyncio
 import calendar
+import urllib.parse
 import feedparser
 import telegram
 from bs4 import BeautifulSoup
@@ -75,6 +76,7 @@ FEED_TIMEOUT_SECONDS = 30
 USER_AGENT = "Mozilla/5.0 (compatible; BusinessDossierBot/1.0; +https://t.me/Business_dossier)"
 TELEGRAM_MAX_LENGTH = 4096
 FOOTER = "━━━━━━━━━━━━━━━\n📌 @Business_dossier · #Dossier"
+SHARE_TITLE = "📈 Strategic Intelligence Dossier: the latest management research, summarized."
 
 
 # --- 2. INITIALIZE THE AI CLIENT ---
@@ -341,6 +343,16 @@ def seconds_until_publish(now, publish_at):
     return max(0, (target - now).total_seconds())
 
 
+def share_button(first_message, title):
+    """A button that shares the link to the report's first message, so whoever opens it
+    lands at the start of the report and can read all its parts in order."""
+    link = first_message.link
+    if not link:
+        return None
+    share_url = "https://t.me/share/url?" + urllib.parse.urlencode({"url": link, "text": title})
+    return telegram.InlineKeyboardMarkup([[telegram.InlineKeyboardButton("📤 Share this dossier", url=share_url)]])
+
+
 async def send_to_telegram(blocks, token, chat_id):
     """Send the report; return True if every message was delivered."""
     if not token or not chat_id:
@@ -352,30 +364,43 @@ async def send_to_telegram(blocks, token, chat_id):
     print(f"Sending report to Telegram in {len(messages)} message(s)...")
     bot = telegram.Bot(token=token)
     all_sent = True
+    sent_messages = []
     async with bot:
         for message in messages:
             try:
-                await bot.send_message(
+                sent_messages.append(await bot.send_message(
                     chat_id=chat_id,
                     text=message,
                     parse_mode='HTML',
                     disable_web_page_preview=True
-                )
+                ))
             except telegram.error.BadRequest as e:
                 # Fall back to plain text for this message only, so nothing is sent twice.
                 print(f"HTML send failed ({e}). Sending this part as plain text...")
                 try:
-                    await bot.send_message(
+                    sent_messages.append(await bot.send_message(
                         chat_id=chat_id,
                         text=html_to_text(message),
                         disable_web_page_preview=True
-                    )
+                    ))
                 except Exception as e2:
                     print(f"Failed to send as plain text. Final error: {e2}")
                     all_sent = False
             except Exception as e:
                 print(f"Failed to send report part. Error: {e}")
                 all_sent = False
+
+        # The button goes on the last message and points to the first, which is only
+        # known once everything is sent, so it is added by editing the last message.
+        if sent_messages:
+            try:
+                buttons = share_button(sent_messages[0], SHARE_TITLE)
+                if buttons:
+                    await bot.edit_message_reply_markup(
+                        chat_id=chat_id, message_id=sent_messages[-1].message_id, reply_markup=buttons
+                    )
+            except Exception as e:
+                print(f"Could not add the share button. Error: {e}")
     if all_sent:
         print("Report successfully sent.")
     return all_sent
