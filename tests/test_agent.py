@@ -26,12 +26,17 @@ def test_get_recent_articles_filters_and_dedupes(monkeypatch):
         SimpleNamespace(title="Old", link="https://a/2", summary="", published_parsed=old),
         SimpleNamespace(title="Undated", link="https://a/3", summary=""),
     ]
-    monkeypatch.setattr(agent.feedparser, "parse", lambda url, agent=None: SimpleNamespace(entries=entries))
+    monkeypatch.setattr(agent.feedparser, "parse", lambda url, agent=None: FakeFeed(entries=entries))
 
-    articles = agent.get_recent_articles({"J1": "u1", "J2": "u2"}, now=now)
+    articles = agent.get_recent_articles({"J1": {"url": "u1", "tag": "J1"}, "J2": {"url": "u2", "tag": "J2"}}, now=now)
 
     assert [a["title"] for a in articles] == ["New"]
     assert articles[0]["summary"] == "Hi & bye"
+
+
+class FakeFeed(SimpleNamespace):
+    def get(self, key, default=None):
+        return getattr(self, key, default)
 
 
 class FakeClient:
@@ -49,20 +54,42 @@ class FakeClient:
 def test_analyze_articles_escapes_and_numbers(monkeypatch):
     monkeypatch.setattr(agent, "API_DELAY_SECONDS", 0)
     articles = [
-        {"journal": "J", "title": "A", "link": "https://x/?a=1&b=2", "summary": ""},
-        {"journal": "J", "title": "B", "link": "https://x/b", "summary": ""},
-        {"journal": "J", "title": "C <new>", "link": "https://x/c", "summary": ""},
+        {"journal": "J", "tag": "J", "title": "A", "link": "https://x/?a=1&b=2", "summary": ""},
+        {"journal": "J", "tag": "J", "title": "B", "link": "https://x/b", "summary": ""},
+        {"journal": "K", "tag": "K", "title": "C <new>", "link": "https://x/c", "summary": ""},
     ]
-    client = FakeClient(["R&D <matters>", RuntimeError("boom"), "Third", "Exec"])
+    client = FakeClient([
+        "SUMMARY: R&D <matters>\nTAKEAWAY: Invest now.",
+        RuntimeError("boom"),
+        "No labels here",
+        "OVERVIEW: Big picture.\nTHEMES:\n- AI\n- Teams\n- Cost",
+    ])
 
     blocks = agent.analyze_articles(articles, client)
     report = "\n".join(blocks)
 
-    assert "R&amp;D &lt;matters&gt;" in report
+    assert "<blockquote expandable>R&amp;D &lt;matters&gt;</blockquote>" in report
+    assert "💡 <b>Takeaway:</b> Invest now." in report
     assert 'href="https://x/?a=1&amp;b=2"' in report
-    assert "2. <b>C &lt;new&gt;</b>" in report
+    assert "<b>2. <a href=\"https://x/c\">C &lt;new&gt;</a></b>" in report
+    assert "<blockquote expandable>No labels here</blockquote>" in report
+    assert "<blockquote>Big picture.</blockquote>" in report
+    assert "• AI\n• Teams\n• Cost" in report
+    assert "#K" in report
     assert "1 article(s) could not be analyzed" in report
-    assert "<b>📊 Articles Reviewed:</b> 2" in report
+    assert "<b>2</b> articles from <b>2</b> sources" in report
+
+
+def test_parse_sections_handles_bold_labels_and_preamble():
+    sections = agent.parse_sections("Intro\n**SUMMARY:** text\n**Takeaway**: do it", ["SUMMARY", "TAKEAWAY"])
+    assert sections == {"summary": "Intro text", "takeaway": "do it"}
+
+
+def test_seconds_until_publish():
+    now = datetime(2026, 10, 21, 16, 0, tzinfo=timezone.utc)
+    assert agent.seconds_until_publish(now, "17:30") == 90 * 60
+    assert agent.seconds_until_publish(now, "15:00") == 0
+    assert agent.seconds_until_publish(now, "") == 0
 
 
 def test_analyze_articles_without_articles():
