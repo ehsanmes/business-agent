@@ -97,13 +97,23 @@ def create_client():
 
 
 # --- 3. FUNCTIONS ---
+# ScienceDirect (Elsevier) feeds carry no date field; the date is only in the description.
+AVAILABLE_ONLINE = re.compile(r"Available online\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})")
+
+
 def entry_datetime(entry):
     """Return the entry's publish (or update) time as an aware UTC datetime, or None."""
     time_struct = getattr(entry, 'published_parsed', None) or getattr(entry, 'updated_parsed', None)
-    if not time_struct:
-        return None
-    # feedparser normalizes parsed times to UTC.
-    return datetime.fromtimestamp(calendar.timegm(time_struct), tz=timezone.utc)
+    if time_struct:
+        # feedparser normalizes parsed times to UTC.
+        return datetime.fromtimestamp(calendar.timegm(time_struct), tz=timezone.utc)
+    match = AVAILABLE_ONLINE.search(getattr(entry, 'summary', ''))
+    if match:
+        try:
+            return datetime.strptime(match.group(1), "%d %B %Y").replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+    return None
 
 
 def get_recent_articles(feeds, now=None):
@@ -215,7 +225,8 @@ ARTICLE_PROMPT = (
     "You are a sharp business analyst writing for busy executives. Read the article details and reply in exactly this format, "
     "with no markdown:\n"
     "SUMMARY: 2-3 clear sentences (under 80 words) explaining the core argument or finding.\n"
-    "TAKEAWAY: one sentence (under 25 words) on what a business leader should do or watch."
+    "TAKEAWAY: one sentence (under 25 words) on what a business leader should do or watch.\n"
+    "If the abstract is missing or only lists authors, infer the topic from the title and do not invent specific findings."
 )
 
 EXECUTIVE_PROMPT = (

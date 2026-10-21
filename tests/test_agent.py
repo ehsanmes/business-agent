@@ -16,6 +16,12 @@ def test_entry_datetime_falls_back_to_updated():
     assert agent.entry_datetime(SimpleNamespace()) is None
 
 
+def test_entry_datetime_from_sciencedirect_description():
+    entry = SimpleNamespace(summary="<p>Publication date: Available online 20 October 2026</p><p>Source: Research Policy</p>")
+    assert agent.entry_datetime(entry) == datetime(2026, 10, 20, tzinfo=timezone.utc)
+    assert agent.entry_datetime(SimpleNamespace(summary="<p>Publication date: December 2026</p>")) is None
+
+
 def test_get_recent_articles_filters_and_dedupes(monkeypatch):
     now = datetime(2026, 10, 21, 12, 0, tzinfo=timezone.utc)
     fresh = (now - timedelta(hours=2)).timetuple()
